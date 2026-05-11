@@ -189,9 +189,10 @@ function showSellForm(order, card, type) {
       await fetch(`https://polybot.cdk.cd${endpoint}`,{
         method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)
       });
-      alert(`Sell ${type} order placed!`);
+      ///alert(`Sell ${type} order placed!`);
+	  showNotification(`Sell ${type} order placed!`, 'info');
       formDiv.remove();
-    } catch(err){ alert('Error placing sell order.'); }
+    } catch(err){ showNotification('Error placing sell order.', 'error'); }
   };
   card.appendChild(formDiv);
 }
@@ -242,8 +243,8 @@ async function cancelOrder(orderId, card){
     const res=await fetch('https://polybot.cdk.cd/cancel',{
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({order_id:orderId})
     });
-    const data=await res.json(); alert(data.response.message); card.remove();
-  } catch(err){ alert('Error canceling order.'); }
+    const data=await res.json(); showNotification(data.response.message, 'info'); card.remove();
+  } catch(err){ showNotification('Error canceling order.', 'error'); }
 }
 
 // Cancel All
@@ -251,11 +252,12 @@ document.getElementById('cancel-all-btn').onclick=async()=>{
   try{
     const res=await fetch('https://polybot.cdk.cd/cancel-all',{method:'POST', headers:{'Content-Type':'application/json'}});
     const data=await res.json();
-    alert(`Canceled: ${data.response.canceled}, Not Canceled: ${data.response.not_canceled}`);
+    ///alert(`Canceled: ${data.response.canceled}, Not Canceled: ${data.response.not_canceled}`);
+	showNotification(`Canceled: ${data.response.canceled}, Not Canceled: ${data.response.not_canceled}`, 'info');
     // remove current window
     if(windowData[windowStartTime]) windowData[windowStartTime]=[];
     renderWindows();
-  } catch(err){ alert('Error canceling all orders.'); }
+  } catch(err){ showNotification('Error canceling all orders.', 'error'); }
 };
 
 // Handle Buy-Limit
@@ -272,7 +274,7 @@ document.getElementById('buy-limit-form').onsubmit=async e=>{
     if(!windowData[windowStartTime]) windowData[windowStartTime]=[];
     windowData[windowStartTime].push(order);
     renderWindows(); f.reset();
-  } catch(err){ alert('Error placing Buy-Limit order.'); }
+  } catch(err){ showNotification('Error placing Buy-Limit order.', 'error'); }
 };
 
 // Handle Buy-Market
@@ -289,7 +291,7 @@ document.getElementById('buy-market-form').onsubmit=async e=>{
     if(!windowData[windowStartTime]) windowData[windowStartTime]=[];
     windowData[windowStartTime].push(order);
     renderWindows(); f.reset();
-  } catch(err){ alert('Error placing Buy-Market order.'); }
+  } catch(err){ showNotification('Error placing Buy-Market order.', 'error'); }
 };
 </script>
 
