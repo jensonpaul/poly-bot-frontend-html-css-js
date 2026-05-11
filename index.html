@@ -182,7 +182,7 @@ function showSellForm(order, card, type) {
     const payload={side:'sell',token:form.token.value,size:form.size.value};
     const endpoint=type==='limit'?'/order-limit':'/order-market';
     try{
-      await fetch(`http://208.85.16.179:3000${endpoint}`,{
+      await fetch(`https://polybot.cdk.cd${endpoint}`,{
         method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)
       });
       alert(`Sell ${type} order placed!`);
@@ -195,7 +195,7 @@ function showSellForm(order, card, type) {
 // Check status
 async function checkOrderStatus(orderId, card){
   try{
-    const res=await fetch('http://208.85.16.179:3000/order-status',{
+    const res=await fetch('https://polybot.cdk.cd/order-status',{
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({order_id:orderId})
     });
     const data=await res.json();
@@ -206,7 +206,7 @@ async function checkOrderStatus(orderId, card){
 // Cancel order
 async function cancelOrder(orderId, card){
   try{
-    const res=await fetch('http://208.85.16.179:3000/cancel',{
+    const res=await fetch('https://polybot.cdk.cd/cancel',{
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({order_id:orderId})
     });
     const data=await res.json(); alert(data.response.message); card.remove();
@@ -216,7 +216,7 @@ async function cancelOrder(orderId, card){
 // Cancel All
 document.getElementById('cancel-all-btn').onclick=async()=>{
   try{
-    const res=await fetch('http://208.85.16.179:3000/cancel-all',{method:'POST', headers:{'Content-Type':'application/json'}});
+    const res=await fetch('https://polybot.cdk.cd/cancel-all',{method:'POST', headers:{'Content-Type':'application/json'}});
     const data=await res.json();
     alert(`Canceled: ${data.response.canceled}, Not Canceled: ${data.response.not_canceled}`);
     // remove current window
@@ -230,7 +230,7 @@ document.getElementById('buy-limit-form').onsubmit=async e=>{
   e.preventDefault(); const f=e.target;
   const payload={side:'buy', token:f.token.value, price:f.price.value, size:f.size.value};
   try{
-    const res=await fetch('http://208.85.16.179:3000/order-limit',{
+    const res=await fetch('https://polybot.cdk.cd/order-limit',{
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
     });
     const data=await res.json();
@@ -246,7 +246,7 @@ document.getElementById('buy-market-form').onsubmit=async e=>{
   e.preventDefault(); const f=e.target;
   const payload={side:'buy', token:f.token.value, usdc:f.usdc.value};
   try{
-    const res=await fetch('http://208.85.16.179:3000/order-market',{
+    const res=await fetch('https://polybot.cdk.cd/order-market',{
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
     });
     const data=await res.json();
