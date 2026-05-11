@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Dashboard</title>
+<style>
+  body { margin:0; font-family:'Segoe UI',sans-serif; background:#121212; color:#e0e0e0;}
+  header { background:#1f1f1f; padding:1rem; text-align:center; font-size:1.5rem; font-weight:bold; color:#00ffcc;}
+  main { padding:1rem; display:flex; gap:2rem; flex-wrap:wrap;}
+  section { flex:1 1 45%; background:#1e1e1e; padding:1rem; border-radius:10px; box-shadow:0 0 15px rgba(0,255,204,0.2);}
+  h2 { border-bottom:1px solid #333; padding-bottom:0.5rem; margin-bottom:1rem; color:#00ffcc;}
+  .order-card { background:#2c2c2c; padding:1rem; border-radius:8px; margin-bottom:1rem; position:relative; }
+  .order-card .buttons { margin-top:0.5rem; display:flex; gap:0.5rem; flex-wrap:wrap;}
+  button { background:#00ffcc; border:none; padding:0.4rem 0.8rem; border-radius:5px; cursor:pointer; color:#121212; font-weight:bold; transition:0.2s;}
+  button:hover { background:#00d9b3;}
+  button.cancel-btn { background:#ff5555; color:#fff;}
+  button.cancel-btn:hover { background:#e04848;}
+  .sold-label { color:#ffb400; font-weight:bold; margin-right:1rem;}
+  .close-btn { position:absolute; top:5px; right:5px; background:#ff5555; border:none; border-radius:50%; width:25px; height:25px; font-weight:bold; cursor:pointer; color:white;}
+  form { display:flex; flex-direction:column; gap:0.5rem; margin-bottom:1rem;}
+  input, select { padding:0.4rem; border-radius:5px; border:none; outline:none;}
+  .countdown { font-size:1.2rem; font-weight:bold; color:#ffb400; margin-bottom:1rem;}
+  .window-section { border:1px solid #333; border-radius:8px; margin-bottom:1rem; }
+  .window-header { background:#2c2c2c; padding:0.5rem 1rem; cursor:pointer; display:flex; justify-content:space-between; align-items:center;}
+  .window-orders { padding:1rem; display:block; }
+  .collapsed .window-orders { display:none; }
+</style>
+</head>
+<body>
+
+<header>Trading Dashboard</header>
+
+<main>
+<section id="positions-section">
+  <h2>Positions</h2>
+  <div class="countdown" id="window-countdown">Loading...</div>
+  <button id="cancel-all-btn">Cancel All</button>
+  <div id="windows-container"></div>
+</section>
+
+<section id="place-order-section">
+  <h2>Place Order</h2>
+  <form id="buy-limit-form">
+    <label>Buy-Limit</label>
+    <select name="token" required>
+      <option value="up">UP</option>
+      <option value="down">DOWN</option>
+    </select>
+    <input type="number" name="price" placeholder="Price" step="0.01" required>
+    <input type="number" name="size" placeholder="Size" required>
+    <button type="submit">Place Buy-Limit</button>
+  </form>
+
+  <form id="buy-market-form">
+    <label>Buy-Market</label>
+    <select name="token" required>
+      <option value="up">UP</option>
+      <option value="down">DOWN</option>
+    </select>
+    <input type="number" name="usdc" placeholder="USDC amount" required>
+    <button type="submit">Place Buy-Market</button>
+  </form>
+</section>
+
+</main>
+
+<script>
+const windowsContainer = document.getElementById('windows-container');
+const countdownEl = document.getElementById('window-countdown');
+let windowStartTime = getCurrentWindowStart();
+let currentWindowOrders = [];
+let windowData = {}; // store orders by window timestamp
+let countdownInterval;
+
+// Get 5-min window start
+function getCurrentWindowStart() {
+  const now = new Date();
+  const minutes = Math.floor(now.getMinutes() / 5) * 5;
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), minutes, 0, 0).getTime();
+}
+
+// Update countdown
+function updateCountdown() {
+  const now = Date.now();
+  const windowEnd = windowStartTime + 5*60*1000;
+  let remaining = Math.floor((windowEnd - now)/1000);
+  if (remaining <= 0) {
+    windowStartTime = getCurrentWindowStart();
+    currentWindowOrders = [];
+    remaining = 5*60;
+    renderWindows();
+  }
+  const mins = String(Math.floor(remaining/60)).padStart(2,'0');
+  const secs = String(remaining%60).padStart(2,'0');
+  countdownEl.textContent = `${mins}:${secs}`;
+}
+countdownInterval = setInterval(updateCountdown, 1000);
+updateCountdown();
+
+// Render orders grouped by window
+function renderWindows() {
+  windowsContainer.innerHTML = '';
+  for (const ts in windowData) {
+    const orders = windowData[ts];
+    const windowSection = document.createElement('div');
+    windowSection.className = 'window-section';
+    if(ts != windowStartTime) windowSection.classList.add('collapsed');
+    const start = new Date(parseInt(ts));
+    const end = new Date(parseInt(ts)+5*60*1000);
+    const header = document.createElement('div');
+    header.className = 'window-header';
+    header.innerHTML = `<span>Window: ${start.toLocaleTimeString()} - ${end.toLocaleTimeString()}</span>
+                        <button>Toggle</button>`;
+    header.querySelector('button').onclick = ()=>windowSection.classList.toggle('collapsed');
+
+    const ordersDiv = document.createElement('div');
+    ordersDiv.className = 'window-orders';
+    orders.forEach(order=> createOrderCard(order, ordersDiv));
+
+    windowSection.appendChild(header);
+    windowSection.appendChild(ordersDiv);
+    windowsContainer.appendChild(windowSection);
+  }
+}
+
+// Create order card
+function createOrderCard(order, container) {
+  const card = document.createElement('div');
+  card.className = 'order-card';
+  card.dataset.orderId = order.order_id;
+  let content = `<div><strong>Side:</strong> ${order.side}</div>
+                 <div><strong>Token:</strong> ${order.token}</div>`;
+  if(order.price) content += `<div><strong>Price:</strong> ${order.price}</div>`;
+  if(order.size) content += `<div><strong>Size:</strong> ${order.size}</div>`;
+  if(order.usdc) content += `<div><strong>USDC:</strong> ${order.usdc}</div>`;
+  card.innerHTML = content;
+
+  const btns = document.createElement('div');
+  btns.className = 'buttons';
+  if(order.side.toLowerCase() === 'buy') {
+    ['Order-Status','Sell-Limit','Sell-Market','Cancel'].forEach(btnText=>{
+      const b = document.createElement('button');
+      b.textContent = btnText;
+      if(btnText==='Cancel') b.className='cancel-btn';
+      b.onclick = ()=>handleButtonClick(btnText, order, card);
+      btns.appendChild(b);
+    });
+  } else {
+    const sold = document.createElement('span'); sold.className='sold-label'; sold.textContent='Sold';
+    const closeBtn = document.createElement('button'); closeBtn.className='close-btn'; closeBtn.textContent='X';
+    closeBtn.onclick=()=>card.remove();
+    card.appendChild(sold); card.appendChild(closeBtn);
+  }
+  card.appendChild(btns);
+  container.appendChild(card);
+}
+
+// Handle Buy button actions
+function handleButtonClick(action, order, card){
+  if(action==='Order-Status') checkOrderStatus(order.order_id, card);
+  else if(action==='Cancel') cancelOrder(order.order_id, card);
+  else if(action==='Sell-Limit') showSellForm(order, card,'limit');
+  else if(action==='Sell-Market') showSellForm(order, card,'market');
+}
+
+// Show Sell form inline
+function showSellForm(order, card, type) {
+  let formDiv = card.querySelector('.sell-form'); if(formDiv) formDiv.remove();
+  formDiv = document.createElement('div'); formDiv.className='sell-form'; formDiv.style.marginTop='0.5rem';
+  formDiv.innerHTML = `<form>
+      <select name="token" required>
+        <option value="up" ${order.token==='up'?'selected':''}>UP</option>
+        <option value="down" ${order.token==='down'?'selected':''}>DOWN</option>
+      </select>
+      <input type="number" name="size" placeholder="Size" required>
+      <button type="submit">${type==='limit'?'Sell-Limit':'Sell-Market'}</button>
+    </form>`;
+  const form = formDiv.querySelector('form');
+  form.onsubmit = async e=> {
+    e.preventDefault();
+    const payload={side:'sell',token:form.token.value,size:form.size.value};
+    const endpoint=type==='limit'?'/order-limit':'/order-market';
+    try{
+      await fetch(`http://208.85.16.179:3000${endpoint}`,{
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)
+      });
+      alert(`Sell ${type} order placed!`);
+      formDiv.remove();
+    } catch(err){ alert('Error placing sell order.'); }
+  };
+  card.appendChild(formDiv);
+}
+
+// Check status
+async function checkOrderStatus(orderId, card){
+  try{
+    const res=await fetch('http://208.85.16.179:3000/order-status',{
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({order_id:orderId})
+    });
+    const data=await res.json();
+    alert(`Status: ${JSON.stringify(data.response.order_details)}`);
+  } catch(err){ alert('Error fetching status.'); }
+}
+
+// Cancel order
+async function cancelOrder(orderId, card){
+  try{
+    const res=await fetch('http://208.85.16.179:3000/cancel',{
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({order_id:orderId})
+    });
+    const data=await res.json(); alert(data.response.message); card.remove();
+  } catch(err){ alert('Error canceling order.'); }
+}
+
+// Cancel All
+document.getElementById('cancel-all-btn').onclick=async()=>{
+  try{
+    const res=await fetch('http://208.85.16.179:3000/cancel-all',{method:'POST', headers:{'Content-Type':'application/json'}});
+    const data=await res.json();
+    alert(`Canceled: ${data.response.canceled}, Not Canceled: ${data.response.not_canceled}`);
+    // remove current window
+    if(windowData[windowStartTime]) windowData[windowStartTime]=[];
+    renderWindows();
+  } catch(err){ alert('Error canceling all orders.'); }
+};
+
+// Handle Buy-Limit
+document.getElementById('buy-limit-form').onsubmit=async e=>{
+  e.preventDefault(); const f=e.target;
+  const payload={side:'buy', token:f.token.value, price:f.price.value, size:f.size.value};
+  try{
+    const res=await fetch('http://208.85.16.179:3000/order-limit',{
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+    });
+    const data=await res.json();
+    const order={...payload, order_id:data.response.response.order_id, side:'buy'};
+    if(!windowData[windowStartTime]) windowData[windowStartTime]=[];
+    windowData[windowStartTime].push(order);
+    renderWindows(); f.reset();
+  } catch(err){ alert('Error placing Buy-Limit order.'); }
+};
+
+// Handle Buy-Market
+document.getElementById('buy-market-form').onsubmit=async e=>{
+  e.preventDefault(); const f=e.target;
+  const payload={side:'buy', token:f.token.value, usdc:f.usdc.value};
+  try{
+    const res=await fetch('http://208.85.16.179:3000/order-market',{
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+    });
+    const data=await res.json();
+    const order={...payload, order_id:data.response.response.order_id, side:'buy'};
+    if(!windowData[windowStartTime]) windowData[windowStartTime]=[];
+    windowData[windowStartTime].push(order);
+    renderWindows(); f.reset();
+  } catch(err){ alert('Error placing Buy-Market order.'); }
+};
+</script>
+
+</body>
+</html>
