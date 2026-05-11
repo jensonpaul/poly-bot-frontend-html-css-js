@@ -25,6 +25,10 @@
   .window-header { background:#2c2c2c; padding:0.5rem 1rem; cursor:pointer; display:flex; justify-content:space-between; align-items:center;}
   .window-orders { padding:1rem; display:block; }
   .collapsed .window-orders { display:none; }
+  .window-footer {padding:0.5rem 1rem;background:#2c2c2c;text-align:right;border-top:1px solid #333;}
+  .window-footer button {background:#ff5555;border:none;border-radius:5px;padding:0.3rem 0.6rem;cursor:pointer;color:white;font-weight:bold;}
+  .window-footer button:hover {background:#e04848;}
+  .collapsed .window-footer {display:none;}
 </style>
 </head>
 <body>
@@ -118,8 +122,17 @@ function renderWindows() {
     ordersDiv.className = 'window-orders';
     orders.forEach(order=> createOrderCard(order, ordersDiv));
 
+    const footer = document.createElement('div');
+    footer.className = 'window-footer';
+    footer.innerHTML = `<button class="close-window-btn">x</button>`;
+    footer.querySelector('.close-window-btn').onclick = () => {
+      windowSection.remove();
+      delete windowData[ts];
+    };
+
     windowSection.appendChild(header);
     windowSection.appendChild(ordersDiv);
+	windowSection.appendChild(footer);
     windowsContainer.appendChild(windowSection);
   }
 }
@@ -175,7 +188,7 @@ function showSellForm(order, card, type) {
         <option value="up" ${order.token==='up'?'selected':''}>UP</option>
         <option value="down" ${order.token==='down'?'selected':''}>DOWN</option>
       </select>
-	  ${priceInput}
+    ${priceInput}
       <input type="number" name="size" placeholder="Size" required>
       <button type="submit">${type==='limit'?'Sell-Limit':'Sell-Market'}</button>
     </form>`;
@@ -183,14 +196,14 @@ function showSellForm(order, card, type) {
   form.onsubmit = async e=> {
     e.preventDefault();
     const payload={side:'sell',token:form.token.value,size:form.size.value};
-	if(type==='limit') payload.price = form.price.value;
+  if(type==='limit') payload.price = form.price.value;
     const endpoint=type==='limit'?'/order-limit':'/order-market';
     try{
       await fetch(`https://polybot.cdk.cd${endpoint}`,{
         method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)
       });
       ///alert(`Sell ${type} order placed!`);
-	  showNotification(`Sell ${type} order placed!`, 'info');
+    showNotification(`Sell ${type} order placed!`, 'info');
       formDiv.remove();
     } catch(err){ showNotification('Error placing sell order.', 'error'); }
   };
@@ -253,7 +266,7 @@ document.getElementById('cancel-all-btn').onclick=async()=>{
     const res=await fetch('https://polybot.cdk.cd/cancel-all',{method:'POST', headers:{'Content-Type':'application/json'}});
     const data=await res.json();
     ///alert(`Canceled: ${data.response.canceled}, Not Canceled: ${data.response.not_canceled}`);
-	showNotification(`Canceled: ${data.response.canceled}, Not Canceled: ${data.response.not_canceled}`, 'info');
+  showNotification(`Canceled: ${data.response.canceled}, Not Canceled: ${data.response.not_canceled}`, 'info');
     // remove current window
     if(windowData[windowStartTime]) windowData[windowStartTime]=[];
     renderWindows();
