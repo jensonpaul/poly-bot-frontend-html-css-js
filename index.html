@@ -192,6 +192,12 @@ function showSellForm(order, card, type) {
   card.appendChild(formDiv);
 }
 
+// Extract order_id from the string
+function extractOrderId(str) {
+  const match = str.match(/order_id:\s*"([^"]+)"/);
+  return match ? match[1] : null;
+}
+
 // Check status
 async function checkOrderStatus(orderId, card){
   try{
@@ -234,7 +240,9 @@ document.getElementById('buy-limit-form').onsubmit=async e=>{
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
     });
     const data=await res.json();
-    const order={...payload, order_id:data.response.response.order_id, side:'buy'};
+    const responseStr = data.response.response;
+    const orderId = extractOrderId(responseStr);
+    const order={...payload, order_id: orderId, side:'buy'};
     if(!windowData[windowStartTime]) windowData[windowStartTime]=[];
     windowData[windowStartTime].push(order);
     renderWindows(); f.reset();
@@ -250,7 +258,9 @@ document.getElementById('buy-market-form').onsubmit=async e=>{
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
     });
     const data=await res.json();
-    const order={...payload, order_id:data.response.response.order_id, side:'buy'};
+    const responseStr = data.response.response;
+    const orderId = extractOrderId(responseStr);
+    const order={...payload, order_id: orderId, side:'buy'};
     if(!windowData[windowStartTime]) windowData[windowStartTime]=[];
     windowData[windowStartTime].push(order);
     renderWindows(); f.reset();
