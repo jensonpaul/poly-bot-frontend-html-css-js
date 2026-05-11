@@ -168,11 +168,14 @@ function handleButtonClick(action, order, card){
 function showSellForm(order, card, type) {
   let formDiv = card.querySelector('.sell-form'); if(formDiv) formDiv.remove();
   formDiv = document.createElement('div'); formDiv.className='sell-form'; formDiv.style.marginTop='0.5rem';
+  let priceInput = '';
+  if(type==='limit') priceInput = `<input type="number" name="price" placeholder="Price" step="0.01" required>`;
   formDiv.innerHTML = `<form>
       <select name="token" required>
         <option value="up" ${order.token==='up'?'selected':''}>UP</option>
         <option value="down" ${order.token==='down'?'selected':''}>DOWN</option>
       </select>
+	  ${priceInput}
       <input type="number" name="size" placeholder="Size" required>
       <button type="submit">${type==='limit'?'Sell-Limit':'Sell-Market'}</button>
     </form>`;
@@ -180,6 +183,7 @@ function showSellForm(order, card, type) {
   form.onsubmit = async e=> {
     e.preventDefault();
     const payload={side:'sell',token:form.token.value,size:form.size.value};
+	if(type==='limit') payload.price = form.price.value;
     const endpoint=type==='limit'?'/order-limit':'/order-market';
     try{
       await fetch(`https://polybot.cdk.cd${endpoint}`,{
@@ -199,6 +203,7 @@ function extractOrderId(str) {
 }
 
 // Check status
+/*
 async function checkOrderStatus(orderId, card){
   try{
     const res=await fetch('https://polybot.cdk.cd/order-status',{
@@ -207,6 +212,28 @@ async function checkOrderStatus(orderId, card){
     const data=await res.json();
     alert(`Status: ${JSON.stringify(data.response.order_details)}`);
   } catch(err){ alert('Error fetching status.'); }
+}
+*/
+async function checkOrderStatus(orderId, card){
+    try{
+        const res = await fetch('https://polybot.cdk.cd/order-status',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({order_id: orderId})
+        });
+        const data = await res.json();
+        // Parse size_matched from string
+        const match = data.response.order_details.match(/size_matched:\s*([\d.]+)/);
+        const sizeMatched = match ? parseFloat(match[1]).toFixed(2) : null;
+        if(sizeMatched !== null){
+            // Auto-fill Sell Form size if it exists
+            const sellForm = card.querySelector('.sell-form form');
+            if(sellForm) sellForm.size.value = sizeMatched;
+        }
+        showNotification('Order status fetched successfully', 'info');
+    } catch(err){
+        showNotification('Error fetching order status', 'error');
+    }
 }
 
 // Cancel order
@@ -240,8 +267,7 @@ document.getElementById('buy-limit-form').onsubmit=async e=>{
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
     });
     const data=await res.json();
-    const responseStr = data.response.response;
-    const orderId = extractOrderId(responseStr);
+    const orderId = extractOrderId(data.response.response);
     const order={...payload, order_id: orderId, side:'buy'};
     if(!windowData[windowStartTime]) windowData[windowStartTime]=[];
     windowData[windowStartTime].push(order);
@@ -258,14 +284,53 @@ document.getElementById('buy-market-form').onsubmit=async e=>{
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
     });
     const data=await res.json();
-    const responseStr = data.response.response;
-    const orderId = extractOrderId(responseStr);
+    const orderId = extractOrderId(data.response.response);
     const order={...payload, order_id: orderId, side:'buy'};
     if(!windowData[windowStartTime]) windowData[windowStartTime]=[];
     windowData[windowStartTime].push(order);
     renderWindows(); f.reset();
   } catch(err){ alert('Error placing Buy-Market order.'); }
 };
+</script>
+
+<script>
+// Create a bottom notification container
+let notifContainer = document.createElement('div');
+notifContainer.style.position = 'fixed';
+notifContainer.style.bottom = '20px';
+notifContainer.style.right = '20px';
+notifContainer.style.display = 'flex';
+notifContainer.style.flexDirection = 'column';
+notifContainer.style.gap = '10px';
+notifContainer.style.zIndex = '9999';
+document.body.appendChild(notifContainer);
+
+function showNotification(message, type='info', duration=3000) {
+    const colors = {
+        info: '#00bfff',
+        success: '#00ff99',
+        error: '#ff5555'
+    };
+    const notif = document.createElement('div');
+    notif.textContent = message;
+    notif.style.background = colors[type] || colors.info;
+    notif.style.color = '#121212';
+    notif.style.padding = '10px 15px';
+    notif.style.borderRadius = '8px';
+    notif.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+    notif.style.fontWeight = 'bold';
+    notif.style.minWidth = '200px';
+    notif.style.maxWidth = '300px';
+    notif.style.fontFamily = 'Segoe UI, sans-serif';
+    notif.style.opacity = '0';
+    notif.style.transition = 'opacity 0.3s ease';
+    notifContainer.appendChild(notif);
+    requestAnimationFrame(() => { notif.style.opacity = '1'; });
+    setTimeout(() => {
+        notif.style.opacity = '0';
+        setTimeout(() => notif.remove(), 300);
+    }, duration);
+}
 </script>
 
 </body>
