@@ -246,13 +246,26 @@ function showSellForm(order, card, type) {
     }
     const endpoint=type==='limit'?'/order-limit':'/order-market';
     try{
-      await apiFetch(`https://polybot.cdk.cd${endpoint}`,{
+      const res=await apiFetch(`https://polybot.cdk.cd${endpoint}`,{
         method:'POST',body:JSON.stringify(payload)
       });
-      ///alert(`Sell ${type} order placed!`);
-      //showNotification(`Sell ${type} order placed!`, 'info');
+	  let data;
+	  try {
+		data = await res.json(); // Try to parse JSON
+	  } catch (jsonErr) {
+		// If JSON parsing fails, fallback to plain text
+		const text = await res.text();
+		throw new Error(`Server returned invalid JSON: ${text}`);
+	  }
+	  if (!res.ok) {
+		// If the server returned an HTTP error, show the JSON error message
+		const errorMessage = data?.error || `Server error: ${res.status}`;
+		throw new Error(errorMessage);
+	  }
+      showNotification(`Sell ${type} order placed!`, 'info');
       formDiv.remove();
-    } catch(err){ showNotification('Error placing sell order.', 'error'); }
+    } catch(err){ showNotification(err.message || 'Error placing sell ${type} order.', 'error');
+	
   };
   card.appendChild(formDiv);
 }
