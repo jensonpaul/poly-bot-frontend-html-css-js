@@ -68,6 +68,10 @@
       <option value="down">DOWN</option>
     </select>
     <input type="number" name="usdc" placeholder="USDC amount" required>
+    <select name="order_type" required>
+      <option value="FAK">FAK</option>
+      <option value="FOK">FOK</option>
+    </select>
     <button type="submit">Place Buy-Market</button>
   </form>
 </section>
@@ -153,7 +157,7 @@ function renderWindows() {
 
     windowSection.appendChild(header);
     windowSection.appendChild(ordersDiv);
-	windowSection.appendChild(footer);
+    windowSection.appendChild(footer);
     windowsContainer.appendChild(windowSection);
   }
 }
@@ -202,14 +206,25 @@ function handleButtonClick(action, order, card){
 function showSellForm(order, card, type) {
   let formDiv = card.querySelector('.sell-form'); if(formDiv) formDiv.remove();
   formDiv = document.createElement('div'); formDiv.className='sell-form'; formDiv.style.marginTop='0.5rem';
+  /// let priceInput = type === 'limit' ? `<input type="number" name="price" placeholder="Price" step="0.01" required>` : '';
   let priceInput = '';
   if(type==='limit') priceInput = `<input type="number" name="price" placeholder="Price" step="0.01" required>`;
+  let orderTypeSelect = '';
+  if(type === 'market') {
+    orderTypeSelect = `
+      <select name="order_type" required>
+        <option value="FAK">FAK (Fill And Kill)</option>
+        <option value="FOK">FOK (Fill Or Kill)</option>
+      </select>
+    `;
+  }
   formDiv.innerHTML = `<form>
       <select name="token" required>
         <option value="up" ${order.token==='up'?'selected':''}>UP</option>
         <option value="down" ${order.token==='down'?'selected':''}>DOWN</option>
       </select>
-    ${priceInput}
+      ${priceInput}
+      ${orderTypeSelect}
       <input type="number" name="size" placeholder="Size" required>
       <button type="submit">${type==='limit'?'Sell-Limit':'Sell-Market'}</button>
     </form>`;
@@ -217,14 +232,25 @@ function showSellForm(order, card, type) {
   form.onsubmit = async e=> {
     e.preventDefault();
     const payload={side:'sell',token:form.token.value,size:form.size.value};
-  if(type==='limit') payload.price = form.price.value;
+    /// if(type==='limit') payload.price = form.price.value;
+    if(type === 'limit') {
+      payload.price = form.price.value;
+    } else if(type === 'market') {
+      payload.order_type = form.order_type.value;
+    }
+    /// type === 'market' && 'size' in payload && (payload.shares = payload.size, delete payload.size);
+    /// type === 'market' && payload.size && Object.assign(payload, { shares: payload.size }) && delete payload.size;
+    if (type === 'market' && 'size' in payload) {
+      payload.shares = payload.size;
+      delete payload.size;
+    }
     const endpoint=type==='limit'?'/order-limit':'/order-market';
     try{
       await apiFetch(`https://polybot.cdk.cd${endpoint}`,{
         method:'POST',body:JSON.stringify(payload)
       });
       ///alert(`Sell ${type} order placed!`);
-    showNotification(`Sell ${type} order placed!`, 'info');
+      showNotification(`Sell ${type} order placed!`, 'info');
       formDiv.remove();
     } catch(err){ showNotification('Error placing sell order.', 'error'); }
   };
@@ -313,7 +339,7 @@ document.getElementById('buy-limit-form').onsubmit=async e=>{
 // Handle Buy-Market
 document.getElementById('buy-market-form').onsubmit=async e=>{
   e.preventDefault(); const f=e.target;
-  const payload={side:'buy', token:f.token.value, usdc:f.usdc.value};
+  const payload={side:'buy', token:f.token.value, usdc:f.usdc.value, order_type:f.order_type.value};
   try{
     const res=await apiFetch('https://polybot.cdk.cd/order-market',{
       method:'POST', body:JSON.stringify(payload)
