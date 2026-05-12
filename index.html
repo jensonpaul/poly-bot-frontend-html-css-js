@@ -250,7 +250,7 @@ function showSellForm(order, card, type) {
         method:'POST',body:JSON.stringify(payload)
       });
       ///alert(`Sell ${type} order placed!`);
-      showNotification(`Sell ${type} order placed!`, 'info');
+      //showNotification(`Sell ${type} order placed!`, 'info');
       formDiv.remove();
     } catch(err){ showNotification('Error placing sell order.', 'error'); }
   };
