@@ -264,7 +264,7 @@ function showSellForm(order, card, type) {
 	  }
       showNotification(`Sell ${type} order placed!`, 'info');
       formDiv.remove();
-    } catch(err){ showNotification('Error placing sell order.', 'error');
+    } catch(err){ showNotification(err.message || `Error placing sell ${type} order.`, 'error'); }
 	
   };
   card.appendChild(formDiv);
