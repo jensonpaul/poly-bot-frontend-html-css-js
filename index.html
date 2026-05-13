@@ -57,7 +57,7 @@
       <option value="down">DOWN</option>
     </select>
     <input type="number" name="price" placeholder="Price" step="0.01" required>
-    <input type="number" name="size" placeholder="Size" required>
+    <input type="number" name="size" placeholder="Size" step="0.01" required>
     <button type="submit">Place Buy-Limit</button>
   </form>
 
@@ -67,7 +67,7 @@
       <option value="up">UP</option>
       <option value="down">DOWN</option>
     </select>
-    <input type="number" name="usdc" placeholder="USDC amount" required>
+    <input type="number" name="usdc" placeholder="USDC amount" step="0.01" required>
     <select name="order_type" required>
       <option value="FAK">FAK</option>
       <option value="FOK">FOK</option>
@@ -225,7 +225,7 @@ function showSellForm(order, card, type) {
       </select>
       ${priceInput}
       ${orderTypeSelect}
-      <input type="number" name="size" placeholder="Size" required>
+      <input type="number" name="size" placeholder="Size" step="0.01" required>
       <button type="submit">${type==='limit'?'Sell-Limit':'Sell-Market'}</button>
     </form>`;
   const form = formDiv.querySelector('form');
