@@ -342,6 +342,12 @@ function showSellForm(order, card, type) {
   card.appendChild(formDiv);
 }
 
+// Extract order_id from the string
+function extractOrderId(str) {
+  const match = str.match(/order_id:\s*"([^"]+)"/);
+  return match ? match[1] : null;
+}
+
 // Check status
 /*
 async function checkOrderStatus(orderId, card){
@@ -480,7 +486,9 @@ const autoUpdateBtn = document.createElement('button');
 autoUpdateBtn.id = 'auto-update-btn';
 autoUpdateBtn.textContent = 'Stop Auto-Update'; // assume auto-start
 autoUpdateBtn.style.margin = '1rem';
-document.body.prepend(autoUpdateBtn);
+///document.body.prepend(autoUpdateBtn);
+const cancelAllBtn = document.getElementById('cancel-all-btn');
+cancelAllBtn.parentNode.insertBefore(autoUpdateBtn, cancelAllBtn.nextSibling);
 
 autoUpdateBtn.onclick = () => {
     if (autoUpdateInterval) {
@@ -493,12 +501,6 @@ autoUpdateBtn.onclick = () => {
         showNotification('Auto-update started', 'info');
     }
 };
-
-// Extract order_id from the string
-function extractOrderId(str) {
-  const match = str.match(/order_id:\s*"([^"]+)"/);
-  return match ? match[1] : null;
-}
 
 // Handle Buy-Limit
 document.getElementById('buy-limit-form').onsubmit=async e=>{
