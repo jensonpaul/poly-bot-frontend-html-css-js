@@ -527,12 +527,31 @@ async function checkOrderStatus(orderId, card){
 
 // Cancel order
 async function cancelOrder(orderId, card){
-  try{
-    const res=await apiFetch('https://polybot.cdk.cd/cancel',{
-      method:'POST', body:JSON.stringify({order_id:orderId})
+  try {
+    const res = await apiFetch('https://polybot.cdk.cd/cancel', {
+      method: 'POST',
+      body: JSON.stringify({ order_id: orderId })
     });
-    const data=await res.json(); showNotification(data.response.message, 'info'); 
-  } catch(err){ showNotification('Error canceling order.', 'error'); }
+
+    const data = await res.json();
+    const message = data.response?.message || '';
+
+    showNotification(message, 'info');
+
+    // Only remove card if message starts with "canceled:" (ignores "not canceled")
+    if (/^\s*canceled:/i.test(message)) {
+      // Remove card from DOM
+      card.remove();
+
+      // Remove from windowData
+      for (const ts in windowData) {
+        windowData[ts] = windowData[ts].filter(order => order.order_id !== orderId);
+        if (windowData[ts].length === 0) delete windowData[ts]; // cleanup empty windows
+      }
+    }
+  } catch(err){
+    showNotification('Error canceling order.', 'error');
+  }
 }
 
 // Cancel All
