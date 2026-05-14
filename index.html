@@ -226,6 +226,7 @@ function renderWindows() {
   }
 }
 
+/*
 // Create order card
 function createOrderCard(order, container) {
   const card = document.createElement('div');
@@ -267,6 +268,97 @@ function handleButtonClick(action, order, card){
   else if(action==='Cancel') cancelOrder(order.order_id, card);
   else if(action==='Sell-Limit') showSellForm(order, card,'limit');
   else if(action==='Sell-Market') showSellForm(order, card,'market');
+}
+*/
+
+function createOrderCard(order, container) {
+  const card = document.createElement('div');
+  card.className = 'order-card';
+  card.dataset.orderId = order.order_id;
+  card.dataset.originalSize = order.size;
+  let content = `<div><strong>Side:</strong> ${order.side}</div>
+                 <div><strong>Token:</strong> ${order.token}</div>`;
+  if(order.price) content += `<div><strong>Price:</strong> ${order.price}</div>`;
+  if(order.size) content += `<div><strong>Size:</strong> ${order.size}</div>`;
+  if(order.usdc) content += `<div><strong>USDC:</strong> ${order.usdc}</div>`;
+  if(order.shares) content += `<div><strong>Size:</strong> ${order.shares}</div>`;
+  if(order.size_matched) content += `<div><strong>Size Matched:</strong> ${order.size_matched}</div>`;
+  card.innerHTML = content;
+
+  const btns = document.createElement('div');
+  btns.className = 'buttons';
+
+  // Common buttons
+  const statusBtn = document.createElement('button');
+  statusBtn.textContent = 'Order-Status';
+  statusBtn.onclick = async () => checkOrderStatus(order.order_id, card);
+  btns.appendChild(statusBtn);
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.className = 'cancel-btn';
+  cancelBtn.onclick = () => cancelOrder(order.order_id, card);
+  btns.appendChild(cancelBtn);
+
+  // Buy-specific buttons
+  if(order.side.toLowerCase() === 'buy') {
+    ['Sell-Limit','Sell-Market'].forEach(btnText => {
+      const b = document.createElement('button');
+      b.textContent = btnText;
+      b.onclick = () => showSellForm(order, card, btnText === 'Sell-Limit' ? 'limit' : 'market');
+      btns.appendChild(b);
+    });
+
+    // Extra "Sell" button for market sell using pre-filled size_matched
+    const autoSellBtn = document.createElement('button');
+    autoSellBtn.textContent = 'Sell';
+    autoSellBtn.onclick = async () => {
+      const sizeMatched = order.size_matched;
+      if(!sizeMatched || parseFloat(sizeMatched) <= 0){
+        showNotification('No matched size available to sell.', 'error');
+        return;
+      }
+
+      const payload = {
+        side: 'sell',
+        token: order.token,
+        shares: sizeMatched,
+        order_type: 'FAK' // default, can be changed
+      };
+
+      try{
+        const res = await apiFetch('https://polybot.cdk.cd/order-market', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        let data;
+ 	    try {
+		  data = await res.json(); // Try to parse JSON
+	    } catch (jsonErr) {
+		  // If JSON parsing fails, fallback to plain text
+		  const text = await res.text();
+		  throw new Error(`Server returned invalid JSON: ${text}`);
+	    }
+	    if (!res.ok) {
+		  // If the server returned an HTTP error, show the JSON error message
+		  const errorMessage = data?.error || `Server error: ${res.status}`;
+		  throw new Error(errorMessage);
+	    }
+        showNotification(`Market sell order placed for ${sizeMatched} ${order.token}`, 'info');
+  		const orderId = extractOrderId(data.response.response);
+        const order={...payload, order_id: orderId, side:'sell', size_matched:'0.00'};
+        if(!windowData[windowStartTime]) windowData[windowStartTime]=[];
+        windowData[windowStartTime].push(order);
+        renderWindows(); f.reset();
+      } catch(err){
+        showNotification('Error placing market sell order.', 'error');
+      }
+    };
+    btns.appendChild(autoSellBtn);
+  }
+
+  card.appendChild(btns);
+  container.appendChild(card);
 }
 
 // Show Sell form inline
@@ -472,7 +564,8 @@ function startAutoUpdate() {
                 }
             }
         }
-    }, 10000); // every 10 seconds
+    ///}, 10000); // every 10 seconds
+	}, 2000); // every 2 seconds
 }
 
 function stopAutoUpdate() {
