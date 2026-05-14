@@ -322,7 +322,7 @@ function createOrderCard(order, container) {
       const payload = {
         side: 'sell',
         token: order.token,
-        shares: sizeMatched,
+        shares: String(sizeMatched),
         order_type: 'FAK' // default, can be changed
       };
 
