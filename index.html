@@ -231,11 +231,14 @@ function createOrderCard(order, container) {
   const card = document.createElement('div');
   card.className = 'order-card';
   card.dataset.orderId = order.order_id;
+  card.dataset.originalSize = order.size;
   let content = `<div><strong>Side:</strong> ${order.side}</div>
                  <div><strong>Token:</strong> ${order.token}</div>`;
   if(order.price) content += `<div><strong>Price:</strong> ${order.price}</div>`;
   if(order.size) content += `<div><strong>Size:</strong> ${order.size}</div>`;
   if(order.usdc) content += `<div><strong>USDC:</strong> ${order.usdc}</div>`;
+  if(order.shares) content += `<div><strong>Size:</strong> ${order.shares}</div>`;
+  if(order.size_matched) content += `<div><strong>Size Matched:</strong> ${order.size_matched}</div>`;
   card.innerHTML = content;
 
   const btns = document.createElement('div');
@@ -328,16 +331,15 @@ function showSellForm(order, card, type) {
 	  }
       showNotification(`Sell ${type} order placed!`, 'info');
       formDiv.remove();
+	  const orderId = extractOrderId(data.response.response);
+      const order={...payload, order_id: orderId, side:'sell', size_matched:'0.00'};
+      if(!windowData[windowStartTime]) windowData[windowStartTime]=[];
+      windowData[windowStartTime].push(order);
+      renderWindows(); f.reset();
     } catch(err){ showNotification(err.message || `Error placing sell ${type} order.`, 'error'); }
 	
   };
   card.appendChild(formDiv);
-}
-
-// Extract order_id from the string
-function extractOrderId(str) {
-  const match = str.match(/order_id:\s*"([^"]+)"/);
-  return match ? match[1] : null;
 }
 
 // Check status
@@ -362,11 +364,63 @@ async function checkOrderStatus(orderId, card){
         // Parse size_matched from string
         const match = data.response.order_details.match(/size_matched:\s*([\d.]+)/);
         const sizeMatched = match ? parseFloat(match[1]).toFixed(2) : null;
-        if(sizeMatched !== null){
+        /*
+		if(sizeMatched !== null){
             // Auto-fill Sell Form size if it exists
             const sellForm = card.querySelector('.sell-form form');
             if(sellForm) sellForm.size.value = sizeMatched;
         }
+		*/
+
+        if (sizeMatched !== null) {
+            let previousSize = null;
+
+            // Update windowData
+            for (const ts in windowData) {
+                windowData[ts].forEach(order => {
+                    if (order.order_id === orderId) {
+                        previousSize = order.size_matched || order.size || null;
+                        order.size_matched = parseFloat(sizeMatched);
+                        if (!order.size) order.size = parseFloat(sizeMatched);
+                    }
+                });
+            }
+
+            // Update Sell form
+            const sellForm = card.querySelector('.sell-form form');
+            if (sellForm && sellForm.size.value !== sizeMatched) {
+                sellForm.size.value = sizeMatched;
+                sellForm.size.style.transition = 'background-color 0.3s';
+                sellForm.size.style.backgroundColor = '#ffff99'; // yellow flash
+                setTimeout(() => { sellForm.size.style.backgroundColor = ''; }, 500);
+            }
+
+            // Update card display
+            const sizeDiv = Array.from(card.querySelectorAll('div'))
+                                 .find(d => d.innerHTML.includes('<strong>Size Matched:</strong>'));
+            if (sizeDiv && previousSize !== sizeMatched) {
+                sizeDiv.innerHTML = `<strong>Size:</strong> ${sizeMatched}`;
+
+                // Determine fill type
+                const orderSize = parseFloat(card.dataset.originalSize || order.size); // store original size
+                let flashColor = '';
+                if (sizeMatched >= orderSize) {
+                    flashColor = '#90ee90'; // light green for full fill
+                } else if (sizeMatched > 0) {
+                    flashColor = '#ffff99'; // yellow for partial fill
+                }
+
+                // Flash card
+                card.style.transition = 'box-shadow 0.3s, background-color 0.3s';
+                card.style.boxShadow = `0 0 15px 3px ${flashColor}`;
+                card.style.backgroundColor = flashColor;
+                setTimeout(() => {
+                    card.style.boxShadow = '';
+                    card.style.backgroundColor = '';
+                }, 500);
+            }
+        }
+
         showNotification('Order status fetched successfully', 'info');
     } catch(err){
         showNotification('Error fetching order status', 'error');
@@ -396,6 +450,56 @@ document.getElementById('cancel-all-btn').onclick=async()=>{
   } catch(err){ showNotification('Error canceling all orders.', 'error'); }
 };
 
+let autoUpdateInterval = null;
+
+function startAutoUpdate() {
+    if (autoUpdateInterval) return; // already running
+
+    autoUpdateInterval = setInterval(async () => {
+        if (!windowData[windowStartTime]) return;
+
+        for (const order of windowData[windowStartTime]) {
+            if (order.side.toLowerCase() === 'buy') {
+                const card = document.querySelector(`.order-card[data-order-id="${order.order_id}"]`);
+                if (card) {
+                    await checkOrderStatus(order.order_id, card);
+                }
+            }
+        }
+    }, 10000); // every 10 seconds
+}
+
+function stopAutoUpdate() {
+    if (autoUpdateInterval) {
+        clearInterval(autoUpdateInterval);
+        autoUpdateInterval = null;
+    }
+}
+
+const autoUpdateBtn = document.createElement('button');
+autoUpdateBtn.id = 'auto-update-btn';
+autoUpdateBtn.textContent = 'Stop Auto-Update'; // assume auto-start
+autoUpdateBtn.style.margin = '1rem';
+document.body.prepend(autoUpdateBtn);
+
+autoUpdateBtn.onclick = () => {
+    if (autoUpdateInterval) {
+        stopAutoUpdate();
+        autoUpdateBtn.textContent = 'Start Auto-Update';
+        showNotification('Auto-update stopped', 'info');
+    } else {
+        startAutoUpdate();
+        autoUpdateBtn.textContent = 'Stop Auto-Update';
+        showNotification('Auto-update started', 'info');
+    }
+};
+
+// Extract order_id from the string
+function extractOrderId(str) {
+  const match = str.match(/order_id:\s*"([^"]+)"/);
+  return match ? match[1] : null;
+}
+
 // Handle Buy-Limit
 document.getElementById('buy-limit-form').onsubmit=async e=>{
   e.preventDefault(); const f=e.target;
@@ -406,10 +510,10 @@ document.getElementById('buy-limit-form').onsubmit=async e=>{
     });
     const data=await res.json();
     const orderId = extractOrderId(data.response.response);
-    const order={...payload, order_id: orderId, side:'buy'};
+    const order={...payload, order_id:orderId, side:'buy', size_matched:'0.00'};
     if(!windowData[windowStartTime]) windowData[windowStartTime]=[];
     windowData[windowStartTime].push(order);
-    renderWindows(); f.reset();
+    renderWindows(); f.reset(); startAutoUpdate();
   } catch(err){ showNotification('Error placing Buy-Limit order.', 'error'); }
 };
 
@@ -423,10 +527,10 @@ document.getElementById('buy-market-form').onsubmit=async e=>{
     });
     const data=await res.json();
     const orderId = extractOrderId(data.response.response);
-    const order={...payload, order_id: orderId, side:'buy'};
+    const order={...payload, order_id:orderId, side:'buy', size_matched:'0.00'};
     if(!windowData[windowStartTime]) windowData[windowStartTime]=[];
     windowData[windowStartTime].push(order);
-    renderWindows(); f.reset();
+    renderWindows(); f.reset(); startAutoUpdate();
   } catch(err){ showNotification('Error placing Buy-Market order.', 'error'); }
 };
 </script>
