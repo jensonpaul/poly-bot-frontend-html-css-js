@@ -531,7 +531,7 @@ async function cancelOrder(orderId, card){
     const res=await apiFetch('https://polybot.cdk.cd/cancel',{
       method:'POST', body:JSON.stringify({order_id:orderId})
     });
-    const data=await res.json(); showNotification(data.response.message, 'info'); card.remove();
+    const data=await res.json(); showNotification(data.response.message, 'info'); 
   } catch(err){ showNotification('Error canceling order.', 'error'); }
 }
 
