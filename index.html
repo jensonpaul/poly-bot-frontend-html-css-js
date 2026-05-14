@@ -519,7 +519,7 @@ async function checkOrderStatus(orderId, card){
             }
         }
 
-        showNotification('Order status fetched successfully', 'info');
+        /// showNotification('Order status fetched successfully', 'info');
     } catch(err){
         showNotification('Error fetching order status', 'error');
     }
@@ -583,8 +583,7 @@ function startAutoUpdate() {
                 }
             }
         }
-    ///}, 10000); // every 10 seconds
-	}, 2000); // every 2 seconds
+    }, 10000); // every 10 seconds
 }
 
 function stopAutoUpdate() {
