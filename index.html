@@ -327,7 +327,7 @@ function createOrderCard(order, container) {
       };
 
       try{
-        const res = await apiFetch('https://polybot.cdk.cd/order-market', {
+        const res = await apiFetch('https://335e9fd5-320c-4050-95b7-adf68c950186-00-18eybygqv2fdn.pike.replit.dev/order-market', {
           method: 'POST',
           body: JSON.stringify(payload)
         });
@@ -444,7 +444,7 @@ function extractOrderId(str) {
 /*
 async function checkOrderStatus(orderId, card){
   try{
-    const res=await apiFetch('https://polybot.cdk.cd/order-status',{
+    const res=await apiFetch('https://335e9fd5-320c-4050-95b7-adf68c950186-00-18eybygqv2fdn.pike.replit.dev/order-status',{
       method:'POST', body:JSON.stringify({order_id:orderId})
     });
     const data=await res.json();
@@ -454,7 +454,7 @@ async function checkOrderStatus(orderId, card){
 */
 async function checkOrderStatus(orderId, card){
     try{
-        const res = await apiFetch('https://polybot.cdk.cd/order-status',{
+        const res = await apiFetch('https://335e9fd5-320c-4050-95b7-adf68c950186-00-18eybygqv2fdn.pike.replit.dev/order-status',{
             method:'POST',
             body: JSON.stringify({order_id: orderId})
         });
@@ -528,7 +528,7 @@ async function checkOrderStatus(orderId, card){
 // Cancel order
 async function cancelOrder(orderId, card){
   try {
-    const res = await apiFetch('https://polybot.cdk.cd/cancel', {
+    const res = await apiFetch('https://335e9fd5-320c-4050-95b7-adf68c950186-00-18eybygqv2fdn.pike.replit.dev/cancel', {
       method: 'POST',
       body: JSON.stringify({ order_id: orderId })
     });
@@ -557,7 +557,7 @@ async function cancelOrder(orderId, card){
 // Cancel All
 document.getElementById('cancel-all-btn').onclick=async()=>{
   try{
-    const res=await apiFetch('https://polybot.cdk.cd/cancel-all',{method:'POST'});
+    const res=await apiFetch('https://335e9fd5-320c-4050-95b7-adf68c950186-00-18eybygqv2fdn.pike.replit.dev/cancel-all',{method:'POST'});
     const data=await res.json();
     ///alert(`Canceled: ${data.response.canceled}, Not Canceled: ${data.response.not_canceled}`);
   showNotification(`Canceled: ${data.response.canceled}, Not Canceled: ${data.response.not_canceled}`, 'info');
@@ -618,7 +618,7 @@ document.getElementById('buy-limit-form').onsubmit=async e=>{
   e.preventDefault(); const f=e.target;
   const payload={side:'buy', token:f.token.value, price:f.price.value, size:f.size.value};
   try{
-    const res=await apiFetch('https://polybot.cdk.cd/order-limit',{
+    const res=await apiFetch('https://335e9fd5-320c-4050-95b7-adf68c950186-00-18eybygqv2fdn.pike.replit.dev/order-limit',{
       method:'POST', body:JSON.stringify(payload)
     });
     const data=await res.json();
@@ -635,7 +635,7 @@ document.getElementById('buy-market-form').onsubmit=async e=>{
   e.preventDefault(); const f=e.target;
   const payload={side:'buy', token:f.token.value, usdc:f.usdc.value, order_type:f.order_type.value};
   try{
-    const res=await apiFetch('https://polybot.cdk.cd/order-market',{
+    const res=await apiFetch('https://335e9fd5-320c-4050-95b7-adf68c950186-00-18eybygqv2fdn.pike.replit.dev/order-market',{
       method:'POST', body:JSON.stringify(payload)
     });
     const data=await res.json();
